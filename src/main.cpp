@@ -3,10 +3,11 @@
 #include "json.hpp"
 #include "PID.h"
 #include <math.h>
+#include <vector>
 
 // for convenience
 using json = nlohmann::json;
-
+using namespace std;
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
 double deg2rad(double x) { return x * pi() / 180; }
@@ -34,7 +35,18 @@ int main()
 
   PID pid;
   // TODO: Initialize the pid variable.
-
+	//double Kp_, Kd_, Ki_;
+	vector<double> params;
+	vector<double> dparams;	
+	params[0] = 0.2; 
+	params[1] = 0;
+	params[2] = 2;
+	dparams[0] = 0;
+	dparams[1] = 0;
+	dparams[2] = 0;
+	// initialize
+	pid.Init(params,dparams);
+	
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -57,7 +69,38 @@ int main()
           * NOTE: Feel free to play around with the throttle and speed. Maybe use
           * another PID controller to control the speed!
           */
-          
+	  	  	double best_error;
+
+			while(accumulate(pid.dparams.begin(),pid.dparams.end(),0) > 0.2) {
+				for(int i = 0; i < pid.params.size();i++) {
+					pid.params[i]+=pid.dparams[i];
+					// update steering and poll for error
+	steer_value = -pid.params[0]* pid.p_error -pid.params[1] * pid.d_error - pid.params[2]*pid.i_error; 
+					// poll the cte and update the coefficients		
+					pid.UpdateError(cte,pid.i_error);	
+					if (cte < best_error) {
+						best_error = cte;
+						pid.dparams[i] *= 1.1;
+					} //end if
+		
+					else {
+						pid.params[i] -= 2* pid.dparams[i];  //revert original change, decrease p and try again
+						//update the steering angle and poll the error
+	steer_value = -pid.params[0]* pid.p_error -pid.params[1] * pid.d_error - pid.params[2]*pid.i_error; 
+						pid.UpdateError(cte,pid.i_error);
+						if (cte < best_error) {
+							best_error = cte;
+							pid.dparams[i] *= 1.1;
+						} //end inner if (increase dp again after more recent change) 
+						else {
+							pid.params[i] += pid.dparams[i];
+							pid.dparams[i] *= 0.9 ;  //decrease amount of change
+						} // end inner else (decrease after more recent change)
+	
+					} //end outer else
+				} // end forloop i
+			} // end whileloop
+			
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
 

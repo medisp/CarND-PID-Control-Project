@@ -1,6 +1,8 @@
+#include <vector>
 #ifndef PID_H
 #define PID_H
 
+using namespace std;
 class PID {
 public:
   /*
@@ -13,10 +15,8 @@ public:
   /*
   * Coefficients
   */ 
-  double Kp;
-  double Ki;
-  double Kd;
-
+  vector<double> dparams;
+  vector<double> params; 
   /*
   * Constructor
   */
@@ -30,12 +30,12 @@ public:
   /*
   * Initialize PID.
   */
-  void Init(double Kp, double Ki, double Kd);
+  void Init(vector<double> params, vector<double> dparams);
 
   /*
   * Update the PID error variables given cross track error.
   */
-  void UpdateError(double cte);
+  void UpdateError(double cte, double i_error);
 
   /*
   * Calculate the total PID error.
