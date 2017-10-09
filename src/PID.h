@@ -17,6 +17,9 @@ public:
   */ 
   vector<double> dparams;
   vector<double> params; 
+  double Kp;
+  double Kd;
+  double Ki;
   /*
   * Constructor
   */
@@ -30,12 +33,19 @@ public:
   /*
   * Initialize PID.
   */
-  void Init(vector<double> params, vector<double> dparams);
+  void Init(double Kp, double Kd, double Ki);
 
   /*
   * Update the PID error variables given cross track error.
   */
-  void UpdateError(double cte, double i_error);
+  void UpdateError(double cte);
+
+
+/*
+* Updates the throttle control for the car basing current speed, CTE, and Delta_CTE:
+*/
+double UpdateThrottle( double cte, double speed, double throttle);
+
 
   /*
   * Calculate the total PID error.

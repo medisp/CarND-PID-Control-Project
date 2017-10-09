@@ -32,21 +32,18 @@ std::string hasData(std::string s) {
 int main()
 {
   uWS::Hub h;
-
+std::cout << "Before Init" << std::endl;
   PID pid;
+std::cout << "After calling PID pid" << std::endl;
   // TODO: Initialize the pid variable.
-	//double Kp_, Kd_, Ki_;
-	vector<double> params;
-	vector<double> dparams;	
-	params[0] = 0.2; 
-	params[1] = 0;
-	params[2] = 2;
-	dparams[0] = 0;
-	dparams[1] = 0;
-	dparams[2] = 0;
+	double Kp_, Kd_, Ki_;
+	Kp_ = 0.4;
+	Kd_ = 4.0;
+	Ki_ = 0.001;
+std::cout << "Assigned to values params" << std::endl;
 	// initialize
-	pid.Init(params,dparams);
-	
+	pid.Init(Kp_,Kd_,Ki_);
+	std::cout << "Calling PID functions" << std::endl;
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -63,50 +60,35 @@ int main()
           double speed = std::stod(j[1]["speed"].get<std::string>());
           double angle = std::stod(j[1]["steering_angle"].get<std::string>());
           double steer_value;
+	  
+	// initializing throttle control variable
+
+	  double throttle_control;
+	  double current_throttle;
           /*
-          * TODO: Calcuate steering value here, remember the steering value is
+          * TODO: Calculate steering value here, remember the steering value is
           * [-1, 1].
           * NOTE: Feel free to play around with the throttle and speed. Maybe use
           * another PID controller to control the speed!
+		-pid.params[0]* pid.p_error -pid.params[1] * pid.d_error - pid.params[2]*pid.i_error;
           */
-	  	  	double best_error;
-
-			while(accumulate(pid.dparams.begin(),pid.dparams.end(),0) > 0.2) {
-				for(int i = 0; i < pid.params.size();i++) {
-					pid.params[i]+=pid.dparams[i];
-					// update steering and poll for error
-	steer_value = -pid.params[0]* pid.p_error -pid.params[1] * pid.d_error - pid.params[2]*pid.i_error; 
-					// poll the cte and update the coefficients		
-					pid.UpdateError(cte,pid.i_error);	
-					if (cte < best_error) {
-						best_error = cte;
-						pid.dparams[i] *= 1.1;
-					} //end if
-		
-					else {
-						pid.params[i] -= 2* pid.dparams[i];  //revert original change, decrease p and try again
-						//update the steering angle and poll the error
-	steer_value = -pid.params[0]* pid.p_error -pid.params[1] * pid.d_error - pid.params[2]*pid.i_error; 
-						pid.UpdateError(cte,pid.i_error);
-						if (cte < best_error) {
-							best_error = cte;
-							pid.dparams[i] *= 1.1;
-						} //end inner if (increase dp again after more recent change) 
-						else {
-							pid.params[i] += pid.dparams[i];
-							pid.dparams[i] *= 0.9 ;  //decrease amount of change
-						} // end inner else (decrease after more recent change)
 	
-					} //end outer else
-				} // end forloop i
-			} // end whileloop
-			
+	std::cout << "calling pid.TotalError()" << std::endl;
+
+	steer_value = pid.TotalError(); 
+
+	std::cout << "calling pid.UpdateError()" << std::endl;
+	pid.UpdateError(cte);
+
+	current_throttle = throttle_control;
+	throttle_control = pid.UpdateThrottle(cte, speed, current_throttle); 
+	if(throttle_control<0.08){throttle_control=0.08;}	
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle_control;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
@@ -155,3 +137,42 @@ int main()
   }
   h.run();
 }
+
+
+
+
+
+
+/*
+	  	  	double best_error=600000.0;
+
+			while(accumulate(pid.dparams.begin(),pid.dparams.end(),0) > 0.2) {
+				for(int i = 0; i < 3;i++) {
+					pid.params[i]+=pid.dparams[i];
+					// update steering and poll for error
+	steer_value = -pid.params[0]* pid.p_error -pid.params[1] * pid.d_error - pid.params[2]*pid.i_error; 
+					// poll the cte and update the coefficients		
+					pid.UpdateError(cte,pid.i_error);	
+					if (cte < best_error) {
+						best_error = cte;
+						pid.dparams[i] *= 1.1;
+					} //end if
+		
+					else {
+						pid.params[i] -= 2* pid.dparams[i];  //revert original change, decrease p and try again
+						//update the steering angle and poll the error
+	steer_value = -pid.params[0]* pid.p_error -pid.params[1] * pid.d_error - pid.params[2]*pid.i_error; 
+						pid.UpdateError(cte,pid.i_error);
+						if (cte < best_error) {
+							best_error = cte;
+							pid.dparams[i] *= 1.1;
+						} //end inner if (increase dp again after more recent change) 
+						else {
+							pid.params[i] += pid.dparams[i];
+							pid.dparams[i] *= 0.9 ;  //decrease amount of change
+						} // end inner else (decrease after more recent change)
+	
+					} //end outer else
+				} // end forloop i
+			} // end whileloop
+*/	
